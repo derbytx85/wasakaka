@@ -1,0 +1,232 @@
+// Wasakaka — Plataforma de comida casera latina (Fort Worth, Texas)
+// Schema adaptado del documento de requerimientos (v1.0, 2026-11-14)
+// Nota: SQLite no soporta listas escalares; `alergenos` y `acciones` se guardan como JSON string.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Actores ────────────────────────────────────────────────────────────────
+
+model Usuario {
+  id        String   @id @default(cuid())
+  rol       String // cocinera | cliente | admin
+  nombre    String
+  telefono  String?
+  correo    String? @unique
+  idioma    String   @default("es")
+  zona      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cocinera       Cocinera?
+  pedidos        Pedido[]       @relation("ClientePedidos")
+  calificaciones Calificacion[]
+}
+
+model Cocinera {
+  id                    String    @id @default(cuid())
+  usuarioId             String    @unique
+  usuario               Usuario   @relation(fields: [usuarioId], references: [id])
+  direccionCasa         String // privada: nunca se muestra al público
+  numeroDshs            String? // registro DSHS si vende TCS
+  numeroDshsVence       DateTime? // el registro DSHS vence por separado de la tarjeta de manipulador (RF-C05)
+  vendeTcs              Boolean   @default(false)
+  tarjetaManipuladorUrl String?
+  tarjetaVence          DateTime?
+  estado                String    @default("pendiente") // pendiente | activa | suspendida | rechazada
+  motivoEstado          String?
+  radioEntregaKm        Float     @default(5)
+  plan                  String    @default("fundadora") // fundadora (US$19/mes) | regular (US$29/mes)
+  ventasFueraPlataforma Int       @default(0) // ajuste manual en centavos, parte del tope legal anual (RF-I04)
+  bio                   String?
+  fotoUrl               String?
+  aceptaEfectivo        Boolean   @default(false)
+  comisionPromo         Float? // comisión promocional % (RF-P04): 0 para fundadoras en lanzamiento
+  promoHasta            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  platos        Plato[]
+  agendas       AgendaCocina[]
+  pedidos       Pedido[]
+  registrosLote RegistroLote[]
+  suscripciones Suscripcion[]
+}
+
+// ─── Menú y agenda ──────────────────────────────────────────────────────────
+
+model Plato {
+  id                  String   @id @default(cuid())
+  cocineraId          String
+  cocinera            Cocinera @relation(fields: [cocineraId], references: [id])
+  nombre              String
+  descripcion         String
+  precio              Int // centavos (RF-I01)
+  categoria           String // panaderia | reposteria | dulces | conservas | refrigerados_tcs | bebidas | mezclas_secas
+  categoriaTributaria String   @default("gravado") // gravado | exento (panadería para llevar sin utensilios va exenta)
+  esTcs               Boolean  @default(false)
+  ingredientes        String
+  alergenos           String   @default("[]") // JSON array
+  fotoUrl             String?
+  activo              Boolean  @default(false)
+  loteRequerido       Boolean  @default(false) // encurtidos/fermentados → registro de lote
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  pedidoItems   PedidoItem[]
+  registrosLote RegistroLote[]
+}
+
+model AgendaCocina {
+  id               String   @id @default(cuid())
+  cocineraId       String
+  cocinera         Cocinera @relation(fields: [cocineraId], references: [id])
+  fecha            String // "2026-11-20"
+  horaCorte        String // "18:00"
+  capacidadPedidos Int      @default(10)
+  activa           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  pedidos Pedido[]
+}
+
+// ─── Pedidos, pagos, entregas ───────────────────────────────────────────────
+
+model Pedido {
+  id               String        @id @default(cuid())
+  clienteId        String
+  cliente          Usuario       @relation("ClientePedidos", fields: [clienteId], references: [id])
+  cocineraId       String
+  cocinera         Cocinera      @relation(fields: [cocineraId], references: [id])
+  agendaId         String?
+  agenda           AgendaCocina? @relation(fields: [agendaId], references: [id])
+  estado           String        @default("nuevo") // nuevo | confirmado | en_cocina | listo | en_entrega | para_recogida | entregado | cancelado
+  tipoEntrega      String // entrega_cocinera | recogida
+  metodoPago       String        @default("tarjeta") // tarjeta | efectivo
+  direccionEntrega String
+  zona             String
+  subtotal         Int // centavos
+  impuesto         Int // centavos
+  comision         Int // centavos
+  netoCocinera     Int // centavos
+  total            Int // centavos
+  codigoCierre     String // 4 dígitos
+  notas            String?
+  fecha            DateTime      @default(now())
+  fechaEntrega     String? // día de la agenda
+
+  items        PedidoItem[]
+  entrega      Entrega?
+  calificacion Calificacion?
+  incidente    Incidente?
+  pago         Pago?
+}
+
+model PedidoItem {
+  id             String  @id @default(cuid())
+  pedidoId       String
+  pedido         Pedido  @relation(fields: [pedidoId], references: [id])
+  platoId        String
+  plato          Plato   @relation(fields: [platoId], references: [id])
+  nombrePlato    String // snapshot
+  cantidad       Int
+  precioUnitario Int // centavos
+  lote           String? // snapshot del lote real usado (RF-C12 / RF-A03)
+  loteId         String?
+  loteRef        RegistroLote? @relation(fields: [loteId], references: [id])
+}
+
+model Pago {
+  id                 String   @id @default(cuid())
+  pedidoId           String   @unique
+  pedido             Pedido   @relation(fields: [pedidoId], references: [id])
+  referencia         String   @unique // simula stripe_payment_intent_id (pi_...)
+  estado             String   @default("pagado") // pagado | pendiente | reembolsado | fallido
+  monto              Int // centavos: lo realmente cobrado (subtotal + impuesto)
+  costoProcesamiento Int // centavos: 2.9% × (subtotal + impuesto) + US$0.30 simulado
+  reembolsoId        String?
+  createdAt          DateTime @default(now())
+}
+
+model Entrega {
+  id          String    @id @default(cuid())
+  pedidoId    String    @unique
+  pedido      Pedido    @relation(fields: [pedidoId], references: [id])
+  latActual   Float?
+  lngActual   Float?
+  progreso    Float     @default(0) // 0..1 recorrido simulado hacia el cliente
+  horaSalida  DateTime?
+  horaEntrega DateTime?
+  evidencia   String?
+  updatedAt   DateTime  @updatedAt
+}
+
+model Calificacion {
+  id                String   @id @default(cuid())
+  pedidoId          String   @unique
+  pedido            Pedido   @relation(fields: [pedidoId], references: [id])
+  clienteId         String
+  cliente           Usuario  @relation(fields: [clienteId], references: [id])
+  cocineraId        String
+  estrellas         Int
+  comentario        String?
+  respuestaCocinera String?
+  createdAt         DateTime @default(now())
+}
+
+// ─── Cumplimiento legal, incidentes e impuestos ─────────────────────────────
+
+model Incidente {
+  id          String   @id @default(cuid())
+  pedidoId    String   @unique
+  pedido      Pedido   @relation(fields: [pedidoId], references: [id])
+  tipo        String // salud | calidad | otro
+  descripcion String
+  acciones    String   @default("[]") // JSON log de acciones con hora
+  estado      String   @default("abierto") // abierto | en_proceso | cerrado
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ImpuestoMensual {
+  id               String  @id @default(cuid())
+  mes              String  @unique // "2026-11"
+  totalVentas      Int // centavos
+  impuestoCobrado  Int // centavos
+  impuestoRemitido Int     @default(0) // centavos
+  comprobante      String?
+}
+
+model RegistroLote {
+  id         String   @id @default(cuid())
+  cocineraId String
+  cocinera   Cocinera @relation(fields: [cocineraId], references: [id])
+  platoId    String
+  plato      Plato    @relation(fields: [platoId], references: [id])
+  lote       String
+  ph         Float?
+  fecha      DateTime @default(now())
+
+  pedidoItems PedidoItem[]
+}
+
+// Suscripción mensual real (RF-P05): US$19 fundadora / US$29 regular.
+// Solo se cobra en meses con al menos una venta o con la vitrina activa.
+// El cobro puede seguir simulado, pero el estado vive en la base.
+model Suscripcion {
+  id         String   @id @default(cuid())
+  cocineraId String
+  cocinera   Cocinera @relation(fields: [cocineraId], references: [id])
+  monto      Int // centavos: 1900 | 2900
+  estado     String   @default("activa") // activa | cobrada | cancelada
+  periodo    String // "2026-01"
+  referencia String? // invoice simulado
+  createdAt  DateTime @default(now())
+}
