@@ -1,0 +1,68 @@
+export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS places (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '🏠',
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  radius INTEGER NOT NULL DEFAULT 150,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  placeId INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '📦',
+  priority TEXT NOT NULL DEFAULT 'normal',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (placeId) REFERENCES places(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  placeId INTEGER NOT NULL UNIQUE,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  weekdays TEXT NOT NULL DEFAULT 'all',
+  startTime TEXT NOT NULL DEFAULT '07:00',
+  endTime TEXT NOT NULL DEFAULT '22:00',
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (placeId) REFERENCES places(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL UNIQUE,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS event_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  placeId INTEGER NOT NULL,
+  eventType TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (placeId) REFERENCES places(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS weather_cache (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  temperature REAL NOT NULL,
+  rainProbability REAL NOT NULL,
+  condition TEXT NOT NULL,
+  windSpeed REAL NOT NULL,
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS geofence_cooldowns (
+  placeId INTEGER PRIMARY KEY,
+  lastTriggeredAt TEXT NOT NULL,
+  FOREIGN KEY (placeId) REFERENCES places(id) ON DELETE CASCADE
+);
+`;
