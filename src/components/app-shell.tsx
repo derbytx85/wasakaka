@@ -129,7 +129,7 @@ export function AppShell() {
         <div className={`mx-auto flex w-full ${ancho} items-center gap-2 px-4 py-3`}>
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <Image
-              src="/logo.svg"
+              src="/logo.png"
               alt="Logotipo de Wasakaka"
               width={36}
               height={36}
