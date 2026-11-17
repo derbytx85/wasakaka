@@ -9,10 +9,17 @@
 // familia»: es la primera pantalla de la migración gradual, para comparar.
 import { db } from "@/lib/db";
 import { aDolares } from "@/lib/dinero";
+import { estadoTarjeta } from "@/lib/cumplimiento";
 import { Card } from "@astryxdesign/core/Card";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { Badge } from "@astryxdesign/core/Badge";
 import { TablaPedidos, type FilaPedido } from "./tabla-pedidos";
+import {
+  TablaIncidentes,
+  TablaAprobaciones,
+  type FilaIncidente,
+  type FilaAprobacion,
+} from "./tablas-extra";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +50,16 @@ export default async function PanelAstryx() {
   inicioMes.setDate(1);
   inicioMes.setHours(0, 0, 0, 0);
 
-  const [pedidosHoy, ventasMes, activas, pendientes, incidentes, recientes] =
-    await Promise.all([
+  const [
+    pedidosHoy,
+    ventasMes,
+    activas,
+    pendientes,
+    incidentes,
+    recientes,
+    incidentesAbiertos,
+    cocinerasPendientes,
+  ] = await Promise.all([
       db.pedido.count({ where: { fecha: { gte: inicioDia } } }),
       db.pedido.aggregate({
         where: { fecha: { gte: inicioMes } },
@@ -61,6 +76,23 @@ export default async function PanelAstryx() {
           cocinera: { include: { usuario: { select: { nombre: true } } } },
         },
       }),
+      db.incidente.findMany({
+        where: { estado: { not: "cerrado" } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: {
+          pedido: {
+            include: {
+              cocinera: { include: { usuario: { select: { nombre: true } } } },
+            },
+          },
+        },
+      }),
+      db.cocinera.findMany({
+        where: { estado: "pendiente" },
+        orderBy: { createdAt: "asc" },
+        include: { usuario: { select: { nombre: true } } },
+      }),
     ]);
 
   const filas: FilaPedido[] = recientes.map((p) => ({
@@ -76,6 +108,37 @@ export default async function PanelAstryx() {
     comision: dinero(p.comision),
     estado: p.estado,
   }));
+
+  const filasIncidentes: FilaIncidente[] = incidentesAbiertos.map((i) => ({
+    id: i.id,
+    fecha: i.createdAt.toLocaleDateString("es", {
+      day: "2-digit",
+      month: "2-digit",
+    }),
+    cocinera: i.pedido.cocinera.usuario.nombre,
+    tipo: i.tipo,
+    descripcion:
+      i.descripcion.length > 80
+        ? `${i.descripcion.slice(0, 80)}…`
+        : i.descripcion,
+    estado: i.estado,
+  }));
+
+  const filasAprobaciones: FilaAprobacion[] = cocinerasPendientes.map(
+    (c) => ({
+      id: c.id,
+      nombre: c.usuario.nombre,
+      desde: c.createdAt.toLocaleDateString("es", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      plan: c.plan,
+      tarjetaNivel: estadoTarjeta(c.tarjetaVence).nivel,
+      vendeTcs: c.vendeTcs,
+      tieneDshs: Boolean(c.numeroDshs),
+    }),
+  );
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
@@ -125,6 +188,36 @@ export default async function PanelAstryx() {
         </Text>
         <div className="mt-3">
           <TablaPedidos filas={filas} />
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <Heading level={2}>Incidentes abiertos</Heading>
+        <Text type="supporting">
+          Salud en rojo, calidad en amarillo: lo urgente se ve antes de leer.
+        </Text>
+        <div className="mt-3">
+          {filasIncidentes.length > 0 ? (
+            <TablaIncidentes filas={filasIncidentes} />
+          ) : (
+            <Text type="supporting">Sin incidentes abiertos. 🎉</Text>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <Heading level={2}>Esperando aprobación</Heading>
+        <Text type="supporting">
+          El cumplimiento de cada cocinera en dos insignias: tarjeta de
+          manipulador de alimentos y registro DSHS (Departamento de Salud del
+          Estado de Texas) cuando vende comida refrigerada.
+        </Text>
+        <div className="mt-3">
+          {filasAprobaciones.length > 0 ? (
+            <TablaAprobaciones filas={filasAprobaciones} />
+          ) : (
+            <Text type="supporting">Nadie espera aprobación.</Text>
+          )}
         </div>
       </div>
 

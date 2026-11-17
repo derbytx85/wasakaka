@@ -131,20 +131,36 @@
   }
 }
 
-/* Scrollbar cálido para listas largas */
-.scroll-lindo::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Scrollbar cálido para listas largas.
+   Modernizado con la guía «customize-scrollbar-color-and-thickness» de
+   Modern Web Guidance: propiedades estándar (scrollbar-color/width) como
+   base, y los pseudo-elementos ::-webkit-scrollbar como respaldo dentro de
+   @supports para navegadores que aún no soportan scrollbar-color. */
+.scroll-lindo {
+  --scrollbar-thumb: oklch(0.8 0.05 65);
+  --scrollbar-track: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
-.scroll-lindo::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scroll-lindo::-webkit-scrollbar-thumb {
-  background: oklch(0.8 0.05 65);
-  border-radius: 8px;
-}
-.scroll-lindo::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.63 0.19 42);
+@supports not (scrollbar-color: auto) {
+  .scroll-lindo {
+    /* sin esto, scrollbar-width: thin suprime el respaldo en WebKit */
+    scrollbar-width: auto;
+  }
+  .scroll-lindo::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-lindo::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-lindo::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 8px;
+  }
+  .scroll-lindo::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.63 0.19 42);
+  }
 }
 
 /* patrón sutil de "mantel" para el hero */
