@@ -159,3 +159,120 @@ export function TablaAprobaciones({ filas }: { filas: FilaAprobacion[] }) {
     />
   );
 }
+
+export interface FilaPlatoRevisar extends Record<string, unknown> {
+  id: string;
+  nombre: string;
+  cocinera: string;
+  categoria: string;
+  ingredientes: string;
+  activo: boolean;
+}
+
+// Platos de cocineras nuevas (primeros 30 días): la segunda capa de revisión
+// contra categorías prohibidas por la ley de comida casera de Texas.
+export function TablaPlatosRevisar({ filas }: { filas: FilaPlatoRevisar[] }) {
+  return (
+    <Table
+      data={filas}
+      idKey="id"
+      density="balanced"
+      dividers="rows"
+      hasHover
+      columns={[
+        {
+          key: "nombre",
+          header: "Plato",
+          width: proportional(1, { minWidth: 160 }),
+        },
+        {
+          key: "cocinera",
+          header: "Cocinera",
+          width: proportional(1, { minWidth: 140 }),
+        },
+        {
+          key: "categoria",
+          header: "Categoría",
+          width: pixel(130),
+        },
+        {
+          key: "ingredientes",
+          header: "Ingredientes",
+          width: proportional(2, { minWidth: 220 }),
+        },
+        {
+          key: "activo",
+          header: "Publicación",
+          width: pixel(130),
+          renderCell: (f) =>
+            f.activo ? (
+              <Badge variant="success" label="Publicado" />
+            ) : (
+              <Badge variant="neutral" label="En pausa" />
+            ),
+        },
+      ]}
+    />
+  );
+}
+
+export interface FilaConciliacion extends Record<string, unknown> {
+  id: string;
+  concepto: string;
+  detalle: string;
+  monto: string;
+}
+
+// Conciliación del mes (RF-P07): el dinero separado por naturaleza —
+// ventas, comisión, costos, margen y el impuesto que NO es ingreso.
+export function TablaConciliacion({ filas }: { filas: FilaConciliacion[] }) {
+  return (
+    <Table
+      data={filas}
+      idKey="id"
+      density="balanced"
+      dividers="rows"
+      columns={[
+        {
+          key: "concepto",
+          header: "Concepto",
+          width: proportional(1, { minWidth: 180 }),
+        },
+        {
+          key: "detalle",
+          header: "Detalle",
+          width: proportional(2, { minWidth: 220 }),
+        },
+        { key: "monto", header: "Monto", width: pixel(120), align: "end" },
+      ]}
+    />
+  );
+}
+
+export interface FilaZona extends Record<string, unknown> {
+  id: string;
+  zona: string;
+  pedidos: string;
+  total: string;
+}
+
+export function TablaZonas({ filas }: { filas: FilaZona[] }) {
+  return (
+    <Table
+      data={filas}
+      idKey="id"
+      density="balanced"
+      dividers="rows"
+      hasHover
+      columns={[
+        {
+          key: "zona",
+          header: "Barrio",
+          width: proportional(1, { minWidth: 140 }),
+        },
+        { key: "pedidos", header: "Pedidos", width: pixel(100), align: "end" },
+        { key: "total", header: "Ventas", width: pixel(120), align: "end" },
+      ]}
+    />
+  );
+}
