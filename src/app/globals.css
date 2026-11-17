@@ -163,6 +163,54 @@
   }
 }
 
+/* Desvanecido de bordes en listas horizontales (píldoras de filtros).
+   Guía «scrollability-affordance-hints» de Modern Web Guidance: el borde se
+   desvanece SOLO cuando hay más contenido hacia ese lado, con una animación
+   ligada al desplazamiento (sin JavaScript ni elementos extra). Si el
+   navegador no soporta animaciones ligadas al scroll, no se aplica nada y
+   la lista se ve como siempre (la barra de desplazamiento sigue visible). */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@supports (animation-timeline: scroll()) {
+  .desvanecer-bordes {
+    --fade-size: 2.5rem;
+    --fade-dir: right;
+    --fade-start-pos: 0;
+    --fade-end-pos: 100%;
+    /* las píldoras son enfocables: que ninguna quede detenida bajo el desvanecido */
+    scroll-padding-inline: var(--fade-size);
+    mask:
+      linear-gradient(black, black) no-clip subtract,
+      linear-gradient(to var(--fade-dir), black, transparent) var(--fade-start-pos) 0 / var(--fade-start) 100% no-repeat no-clip,
+      linear-gradient(to var(--fade-dir), transparent, black) var(--fade-end-pos) 0 / var(--fade-end) 100% no-repeat no-clip;
+    animation:
+      revelar-borde-inicio linear both,
+      ocultar-borde-fin linear both;
+    animation-timeline: scroll(self inline);
+    animation-range:
+      0 var(--fade-size),
+      calc(100% - var(--fade-size)) 100%;
+  }
+}
+@keyframes revelar-borde-inicio {
+  to {
+    --fade-start: var(--fade-size);
+  }
+}
+@keyframes ocultar-borde-fin {
+  from {
+    --fade-end: var(--fade-size);
+  }
+}
+
 /* patrón sutil de "mantel" para el hero */
 .patron-mantel {
   background-image:

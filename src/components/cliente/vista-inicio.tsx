@@ -152,7 +152,7 @@ export function VistaCliente() {
 
       {/* Filtros (RF-U02) */}
       <section className="space-y-2" aria-label="Filtros del catálogo">
-        <div className="flex gap-2 overflow-x-auto pb-1 scroll-lindo">
+        <div className="flex gap-2 overflow-x-auto pb-1 scroll-lindo desvanecer-bordes">
           <Pill activa={zona === "todas"} onClick={() => setZona("todas")}>
             <MapPin className="size-3.5" /> Todos los barrios
           </Pill>
@@ -162,7 +162,7 @@ export function VistaCliente() {
             </Pill>
           ))}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 scroll-lindo">
+        <div className="flex gap-2 overflow-x-auto pb-1 scroll-lindo desvanecer-bordes">
           <Pill activa={categoria === "todas"} onClick={() => setCategoria("todas")}>
             <UtensilsCrossed className="size-3.5" /> Todo
           </Pill>
